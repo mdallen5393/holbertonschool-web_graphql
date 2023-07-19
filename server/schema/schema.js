@@ -1,15 +1,18 @@
 const graphql = require('graphql');
 const _ = require('lodash');
+const Task = require('./models/project');
+const Project = require('./models/task');
 const {
   GraphQLObjectType,
   GraphQLString,
   GraphQLInt,
   GraphQLID,
-  GraphQLList 
+  GraphQLList,
+  GraphQLNonNull
 } = graphql;
 
-
-const tasks = [
+// --- Dummy Data --- //
+/* const tasks = [
   {
     id: '1',
     title: 'Create your first webpage',
@@ -41,7 +44,7 @@ const projects = [
     description: 'Bootstrap is a free and open-source CSS framework directed at responsive, mobile-first front-end web development. It contains CSS and JavaScript design templates for typography, forms, buttons, navigation, and other interface components.',
     projectId: '2'
   }
-];
+]; */
 
 const TaskType = new GraphQLObjectType({
   name: 'Task',
@@ -53,7 +56,8 @@ const TaskType = new GraphQLObjectType({
     project: {
       type: ProjectType,
       resolve(parent, args) {
-        return _.find(projects, { id: parent.projectId })
+        // return _.find(projects, { id: parent.projectId })
+        return Project.findById(args.id);
       }
     }
   })
@@ -69,7 +73,8 @@ const ProjectType = new GraphQLObjectType({
     tasks: {
       type: new GraphQLList(TaskType),
       resolve(parent, args) {
-        return _.filter(tasks, (task) => task.projectId === parent.id )
+        // return _.filter(tasks, (task) => task.projectId === parent.id )
+        return Task.find({ projectId: parent.id });
       }
     }
   })
@@ -82,31 +87,76 @@ const RootQuery = new GraphQLObjectType({
       type: TaskType,
       args: { id: { type: GraphQLID } },
       resolve(parent, args) {
-        return _.find(tasks, { id: args.id });
+        // return _.find(tasks, { id: args.id });
+        return Task.findById(args.id);
       }
     },
     project: {
       type: ProjectType,
       args: { id: { type: GraphQLID } },
       resolve(parent, args) {
-        return _.find(projects, { id: args.id });
+        // return _.find(projects, { id: args.id });
+        return Project.findById(args.id);
       }
     },
     tasks: {
       type: new GraphQLList(TaskType),
       resolve(parent, args) {
-        return types;
+        // return types;
+        return Task.find({});
       }
     },
     projects: {
       type: new GraphQLList(ProjectType),
       resolve(parent, args) {
-        return projects;
+        // return projects;
+        return Project.find({});
       }
     }
   }
 });
 
+const Mutation = new GraphQLObjectType({
+  name: 'Mutation',
+  fields: {
+    addProject: {
+      type: ProjectType,
+      args: {
+        title: { type: new GraphQLNonNull(GraphQLString) },
+        weight: { type: new GraphQLNonNull(GraphQLInt) },
+        description: { type: new GraphQLNonNull(GraphQLString) }
+      },
+      resolve(parent, args) {
+        let project = new Project({
+          title: args.title,
+          weight: args.weight,
+          description: args.description
+        });
+        return project.save();
+      }
+    },
+    addTask: {
+      type: TaskType,
+      args: {
+        title: {type: new GraphQLNonNull(GraphQLString) },
+        weight: { type: new GraphQLNonNull(GraphQLInt) },
+        description: { type: new GraphQLNonNull(GraphQLString) },
+        projectId: { type: new GraphQLNonNull(GraphQLID) }
+      },
+      resolve(parent, args) {
+        let task = new Task({
+          title: args.title,
+          weight: args.weight,
+          description: args.description,
+          projectId: args.projectId
+        });
+        return task.save();
+      }
+    }
+  }
+})
+
 module.exports = new graphql.GraphQLSchema({
-  query: RootQuery
+  query: RootQuery,
+  mutation: Mutation
 });
